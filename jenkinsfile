@@ -1,0 +1,41 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Install dependencies') {
+            steps {
+                sh 'pip install -r requirements.txt'
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                sh 'flake8 --exclude=venv* --statistics'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'python -m unittest discover tests'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'python setup.py sdist bdist_wheel'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sshagent(['my-ssh-key']) {
+                    sh '''
+                    scp dist/my-flask-app-1.0.0.tar.gz ec2-user@my.ec2.instance:/home/ec2-user/
+                    ssh ec2-user@my.ec2.instance "tar xzf /home/ec2-user/my-flask-app-1.0.0.tar.gz -C /var/www/flaskapp/"
+                    ssh ec2-user@my.ec2.instance "sudo systemctl restart flaskapp"
+                    '''
+                }
+            }
+        }
+    }
+}
